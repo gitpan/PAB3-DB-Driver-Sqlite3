@@ -126,15 +126,18 @@ CODE:
 	if( r == SQLITE_OK ) {
 		if( res->is_valid ) {
 			res->current_row = res->data_cursor;
+			con->affected_rows = res->numrows;
 			RETVAL = (long) res;
 		}
 		else {
 			my_result_rem( res );
+			con->affected_rows = sqlite3_changes( con->con );
 			RETVAL = 1;
 		}
 	}
 	else {
 		my_result_rem( res );
+		con->affected_rows = 0;
 		goto error;
 	}
 	goto exit;
@@ -296,13 +299,16 @@ CODE:
 		} while( RETVAL == SQLITE_ROW );
 		res->current_row = res->data_cursor;
 		stmt->res = res;
+		stmt->con->affected_rows = res->numrows;
 		RETVAL = (UV) res;
 		goto exit;
 	case SQLITE_DONE:
+		stmt->con->affected_rows = sqlite3_changes( stmt->con->con );
 		RETVAL = 1;
 		goto exit;
 	default:
 		sqlite3_finalize( stmt->stmt );
+		stmt->con->affected_rows = 0;
 		goto error;
 	}
 error:
@@ -828,10 +834,10 @@ UV linkid
 CODE:
 	switch( my_stmt_or_con( &linkid ) ) {
 	case MY_TYPE_CON:
-		RETVAL = (UV) sqlite3_changes( ((MY_CON *) linkid)->con );
+		RETVAL = (UV) ((MY_CON *) linkid)->affected_rows;
 		break;
 	case MY_TYPE_STMT:
-		RETVAL = (UV) sqlite3_changes( ((MY_STMT *) linkid)->con->con );
+		RETVAL = (UV) ((MY_STMT *) linkid)->con->affected_rows;
 		break;
 	default:
 		RETVAL = 0;

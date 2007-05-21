@@ -52,6 +52,7 @@ typedef struct st_my_stmt {
 	DWORD				param_count;
 	char				*param_types;
 	MY_RES				*res;
+//	DWORD				affected_rows;
 } MY_STMT;
 
 typedef struct st_my_con {
@@ -65,6 +66,7 @@ typedef struct st_my_con {
 	MY_STMT				*last_stmt;
 	DWORD				my_flags;
 	char				my_error[256];
+	DWORD				affected_rows;
 } MY_CON;
 
 typedef struct st_my_cxt {
