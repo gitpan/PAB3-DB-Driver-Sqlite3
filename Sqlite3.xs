@@ -304,6 +304,7 @@ CODE:
 		goto exit;
 	case SQLITE_DONE:
 		stmt->con->affected_rows = sqlite3_changes( stmt->con->con );
+		sqlite3_reset( stmt->stmt );
 		RETVAL = 1;
 		goto exit;
 	default:

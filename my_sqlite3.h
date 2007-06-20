@@ -79,7 +79,7 @@ typedef struct st_my_cxt {
 #endif
 } my_cxt_t;
 
-#define MY_CXT_KEY "PAB::DB::Driver::Sqlite3::_guts" XS_VERSION
+#define MY_CXT_KEY "PAB3::DB::Driver::Sqlite3::_guts" XS_VERSION
 
 START_MY_CXT
 
