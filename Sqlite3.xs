@@ -15,10 +15,8 @@ BOOT:
 #ifdef USE_THREADS
 	//MUTEX_INIT( &MY_CXT.share_lock );
 #endif
-	my_init();
+	my_init( &MY_CXT );
 }
-
-#define __PACKAGE__ "PAB3::DB::Driver::Sqlite3"
 
 
 #/******************************************************************************
@@ -27,8 +25,8 @@ BOOT:
 
 UV
 _open( db, client_flag = 0 )
-const char *db
-unsigned long client_flag
+	const char *db;
+	UV client_flag;
 PREINIT:
 	dMY_CXT;
 	sqlite3 *con;
@@ -38,7 +36,7 @@ PREINIT:
 CODE:
 	r = sqlite3_open( db, &con );
 	if( r == SQLITE_OK ) {
-		rcon = my_con_add( con, get_current_thread_id() );
+		rcon = my_con_add( &MY_CXT, con, get_current_thread_id() );
 		if( db ) {
 			l = strlen( db );
 			New( 1, rcon->db, l + 1, char );
@@ -65,11 +63,13 @@ OUTPUT:
 
 void
 close( linkid = 0 )
-UV linkid
+	UV linkid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_get_type( &linkid ) ) {
+	switch( my_get_type( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
-		my_con_rem( (MY_CON *) linkid );
+		my_con_rem( &MY_CXT, (MY_CON *) linkid );
 		break;
 	case MY_TYPE_RES:
 		my_result_rem( (MY_RES *) linkid );
@@ -86,9 +86,11 @@ CODE:
 
 UV
 reconnect( linkid = 0 )
-UV linkid
+	UV linkid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	if( ( linkid = my_verify_linkid( linkid ) ) )
+	if( ( linkid = my_verify_linkid( &MY_CXT, linkid ) ) )
 		RETVAL = 1;
 	else
 		RETVAL = 0;
@@ -103,6 +105,7 @@ OUTPUT:
 UV
 query( ... )
 PREINIT:
+	dMY_CXT;
 	const char *sql;
 	UV linkid = 0;
 	MY_CON *con;
@@ -119,7 +122,7 @@ CODE:
 	default:	
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::query(linkid = 0, query)" );
 	}
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	res = my_result_add( con );
 	r = sqlite3_exec( con->con, sql, &my_callback, res, 0 );
@@ -155,6 +158,7 @@ OUTPUT:
 UV
 prepare( ... )
 PREINIT:
+	dMY_CXT;
 	const char *sql;
 	UV linkid = 0;
 	MY_CON *con;
@@ -172,7 +176,7 @@ CODE:
 	default:	
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::prepare(linkid = 0, query)" );
 	}
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	r = sqlite3_prepare_v2( con->con, sql, strlen( sql ), &pStmt, NULL );
 	if( r != SQLITE_OK ) goto error;
@@ -191,12 +195,14 @@ OUTPUT:
 
 int
 bind_param( stmtid, p_num, val, type = 0 )
-UV stmtid
-unsigned long p_num
-SV *val
-char type
+	UV stmtid;
+	UV p_num;
+	SV *val;
+	char type;
+PREINIT:
+	dMY_CXT;
 CODE:
-	if( ! my_stmt_exists( stmtid ) )
+	if( ! my_stmt_exists( &MY_CXT, stmtid ) )
 		RETVAL = 0;
 	else
 		RETVAL = my_stmt_bind_param( (MY_STMT *) stmtid, p_num, val, type ) == SQLITE_OK;
@@ -210,15 +216,16 @@ OUTPUT:
 
 UV
 execute( stmtid, ... )
-UV stmtid
+	UV stmtid;
 PREINIT:
+	dMY_CXT;
 	MY_STMT *stmt;
 	MY_RES *res;
 	MY_ROWS *row;
 	DWORD i, columns, l;
 	const char *p1;
 CODE:
-	if( ! my_stmt_exists( stmtid ) ) goto error;
+	if( ! my_stmt_exists( &MY_CXT, stmtid ) ) goto error;
 	stmt = (MY_STMT *) stmtid;
 	if( stmt->res != NULL ) {
 		if( stmt->res->is_valid == 2 )
@@ -325,9 +332,11 @@ OUTPUT:
 
 int
 free_result( resid )
-UV resid
+	UV resid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		if( ((MY_RES *) resid)->stmt == NULL ) {
 			my_result_rem( (MY_RES *) resid );
@@ -353,11 +362,13 @@ OUTPUT:
 # * num_fields( resid )
 # ******************************************************************************/
 
-unsigned long
+UV
 num_fields( resid )
-long resid
+	UV resid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		RETVAL = ( (MY_RES *) resid )->numfields;
 		break;
@@ -376,11 +387,13 @@ OUTPUT:
 # * num_rows( resid )
 # ******************************************************************************/
 
-unsigned long
+UV
 num_rows( resid )
-UV resid
+	UV resid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		RETVAL = ( (MY_RES *) resid )->numrows;
 		break;
@@ -401,12 +414,13 @@ OUTPUT:
 
 void
 fetch_names( resid )
-UV resid
+	UV resid;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	DWORD i;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -429,16 +443,17 @@ exit:
 
 void
 fetch_field( resid, offset = -1 )
-UV resid
-long offset
+	UV resid;
+	long offset;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_STMT *stmt;
 	DWORD i;
 	const char *table, *catalog, *dt, *cs;
 	int nn, pk, ai, r;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		stmt = res->stmt;
@@ -493,13 +508,14 @@ exit:
 
 UV
 field_seek( resid, offset = 0 )
-UV resid
-long offset
+	UV resid;
+	long offset;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 CODE:
 	RETVAL = 0;
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -528,13 +544,14 @@ OUTPUT:
 
 void
 fetch_row( resid )
-UV resid
+	UV resid;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_ROWS *row;
 	unsigned long i;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -579,13 +596,14 @@ exit:
 
 void
 fetch_col( resid )
-UV resid
+	UV resid;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_ROWS *row;
 	unsigned long i;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -630,13 +648,14 @@ exit:
 
 void
 fetch_hash( resid )
-UV resid
+	UV resid;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_ROWS *row;
 	DWORD i;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -682,13 +701,14 @@ exit:
 
 void
 fetch_lengths( resid )
-UV resid
+	UV resid;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_ROWS *row;
 	DWORD i;
 PPCODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -713,11 +733,13 @@ exit:
 # * row_tell( resid )
 # ******************************************************************************/
 
-unsigned long
+UV
 row_tell( resid )
-UV resid
+	UV resid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		RETVAL = ( (MY_RES *) resid )->rowpos;
 		break;
@@ -738,15 +760,16 @@ OUTPUT:
 
 long
 row_seek( resid, offset = 0 )
-UV resid
-long offset
+	UV resid;
+	long offset;
 PREINIT:
+	dMY_CXT;
 	MY_RES *res;
 	MY_ROWS *row;
 	unsigned long remaining;
 CODE:
 	RETVAL = -1;
-	switch( my_stmt_or_res( resid ) ) {
+	switch( my_stmt_or_res( &MY_CXT, resid ) ) {
 	case MY_TYPE_RES:
 		res = (MY_RES *) resid;
 		break;
@@ -805,12 +828,14 @@ OUTPUT:
 
 UV
 insert_id( linkid = 0, field = NULL, table = NULL, schema = NULL )
-UV linkid
-const char *field
-const char *table
-const char *schema
+	UV linkid;
+	const char *field;
+	const char *table;
+	const char *schema;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_con( &linkid ) ) {
+	switch( my_stmt_or_con( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
 		RETVAL = (UV) sqlite3_last_insert_rowid( ((MY_CON *) linkid)->con );
 		break;
@@ -831,9 +856,11 @@ OUTPUT:
 
 UV
 affected_rows( linkid = 0 )
-UV linkid
+	UV linkid;
+PREINIT:
+	dMY_CXT;
 CODE:
-	switch( my_stmt_or_con( &linkid ) ) {
+	switch( my_stmt_or_con( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
 		RETVAL = (UV) ((MY_CON *) linkid)->affected_rows;
 		break;
@@ -854,7 +881,7 @@ OUTPUT:
 
 SV *
 quote( val )
-const char *val
+	const char *val;
 PREINIT:
 	char *res = 0;
 	int l, lmax, i, dp;
@@ -887,7 +914,7 @@ CLEANUP:
 
 SV *
 quote_id( p1, ... )
-const char *p1
+	const char *p1;
 PREINIT:
 	const char *str;
 	char *res = 0;
@@ -936,6 +963,7 @@ CLEANUP:
 int
 set_charset( ... )
 PREINIT:
+	dMY_CXT;
 	const char *charset;
 	UV linkid, itemp = 0;
 	MY_CON *con;
@@ -947,7 +975,7 @@ CODE:
 		itemp ++;
 	}
     charset = (const char *) SvPV_nolen( ST( itemp ) );
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	RETVAL = 1;
 	goto exit;
@@ -964,7 +992,7 @@ OUTPUT:
 
 const char *
 get_charset( linkid = 0 )
-long linkid
+	UV linkid;
 CODE:
 	RETVAL = "utf8";
 OUTPUT:
@@ -977,10 +1005,10 @@ OUTPUT:
 
 char *
 sql_limit( sql, length, limit, offset = -1 )
-const char *sql
-unsigned long length
-long limit
-long offset
+	const char *sql;
+	unsigned long length;
+	long limit;
+	long offset;
 PREINIT:
 	char *res, *rp;
 	const char *fc;
@@ -1033,13 +1061,14 @@ CLEANUP:
 
 int
 auto_commit( linkid = 0, mode = 0 )
-UV linkid
-int mode
+	UV linkid;
+	int mode;
 PREINIT:
+	dMY_CXT;
 	MY_CON *con;
 	int r;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	if( mode ) {
 		if( ( con->my_flags & MYCF_AUTOCOMMIT ) == 0 ) {
@@ -1076,12 +1105,13 @@ OUTPUT:
 
 int
 begin_work( linkid = 0 )
-UV linkid
+	UV linkid;
 PREINIT:
+	dMY_CXT;
 	MY_CON *con;
 	int r;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	if( ( con->my_flags & MYCF_AUTOCOMMIT ) != 0
 		&& ( con->my_flags & MYCF_TRANSACTION ) == 0
@@ -1105,12 +1135,13 @@ OUTPUT:
 
 int
 commit( linkid = 0 )
-UV linkid
+	UV linkid;
 PREINIT:
+	dMY_CXT;
 	MY_CON *con;
 	int r;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	if( ( con->my_flags & MYCF_TRANSACTION ) != 0 ) {
 		r = sqlite3_exec( con->con, "COMMIT TRANSACTION", 0, 0, 0 );
@@ -1137,12 +1168,13 @@ OUTPUT:
 
 int
 rollback( linkid = 0 )
-UV linkid
+	UV linkid;
 PREINIT:
+	dMY_CXT;
 	MY_CON *con;
 	int r;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	if( ( con->my_flags & MYCF_TRANSACTION ) != 0 ) {
 		r = sqlite3_exec( con->con, "ROLLBACK TRANSACTION", 0, 0, 0 );
@@ -1169,9 +1201,10 @@ OUTPUT:
 
 void
 show_catalogs( linkid = 0, wild = NULL )
-UV linkid
-const char *wild
+	UV linkid;
+	const char *wild;
 PREINIT:
+	dMY_CXT;
 	int r;
 	MY_CON *con;
 PPCODE:
@@ -1181,7 +1214,7 @@ PPCODE:
 		return 0;
 	}
 	
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	
 	r = sqlite3_exec( con->con, "PRAGMA database_list", &_intcb, 0, 0 );
@@ -1195,11 +1228,12 @@ error:
 
 void
 show_tables( linkid = 0, schema = NULL, db = NULL, wild = NULL )
-UV linkid
-const char *db
-const char *schema
-const char *wild
+	UV linkid;
+	const char *db;
+	const char *schema;
+	const char *wild;
 PREINIT:
+	dMY_CXT;
 	MY_CON *con;
 	AV *av;
 	char sql[256], *p1;
@@ -1226,7 +1260,7 @@ PPCODE:
 		return 0;
 	}
 
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 	
 	p1 = my_strcpy( sql, "SELECT * FROM " );
@@ -1255,6 +1289,7 @@ error:
 void
 show_fields( ... )
 PREINIT:
+	dMY_CXT;
 	UV linkid = 0;
 	const char *table;
 	const char *schema = NULL;
@@ -1304,7 +1339,7 @@ PPCODE:
 	}
 	if( itemp < items )
 		wild = (const char *) SvPV_nolen( ST( itemp ) );
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 
 	New( 1, sql, 23 + strlen( table ), char );
@@ -1324,6 +1359,7 @@ error:
 void
 show_index( ... )
 PREINIT:
+	dMY_CXT;
 	UV linkid = 0;
 	const char *table;
 	const char *schema = NULL;
@@ -1388,7 +1424,7 @@ PPCODE:
 	}
 	if( itemp < items )
 		db = (const char *) SvPV_nolen( ST( itemp ) );
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con == NULL ) goto error;
 
 	New( 1, sql, 23 + strlen( table ), char );
@@ -1411,12 +1447,12 @@ error:
 
 int
 errno( linkid = 0 )
-long linkid
+	UV linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	RETVAL = con != NULL
 		? sqlite3_errcode( con->con )
 		: MY_CXT.last_errno;
@@ -1430,13 +1466,13 @@ OUTPUT:
 
 SV *
 error( linkid = 0 )
-long linkid
+	UV linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
 	const char *error;
 CODE:
-	con = (MY_CON *) my_verify_linkid( linkid );
+	con = (MY_CON *) my_verify_linkid( &MY_CXT, linkid );
 	if( con != NULL ) {
 		error = sqlite3_errmsg( con->con );
 		if( error[0] == '\0' ) error = con->my_error;
@@ -1456,9 +1492,9 @@ CODE:
 void
 _cleanup()
 PREINIT:
-	//dMY_CXT;
+	dMY_CXT;
 CODE:
-	my_cleanup();
+	my_cleanup( &MY_CXT );
 #ifdef USE_THREADS
 	//MUTEX_DESTROY( &MY_CXT.share_lock );
 #endif
@@ -1470,15 +1506,17 @@ CODE:
 
 void
 _session_cleanup()
+PREINIT:
+	dMY_CXT;
 CODE:
-	my_session_cleanup();
+	my_session_cleanup( &MY_CXT );
 
 
 #/******************************************************************************
 # * get_current_thread_id();
 # ******************************************************************************/
 
-unsigned long
+UV
 get_current_thread_id()
 CODE:
 	RETVAL = get_current_thread_id();

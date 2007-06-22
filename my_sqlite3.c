@@ -11,103 +11,96 @@ void _refbuf_rem( struct st_refbuf *rb );
 #define refbuf_rem(rb)          _refbuf_rem( (struct st_refbuf *) (rb) )
 
 
-void my_init() {
-	dMY_CXT;
-	MY_CXT.firstcon = MY_CXT.lastcon = NULL;
-	MY_CXT.last_errno = 0;
-	MY_CXT.last_error[0] = '\0';
+void my_init( my_cxt_t *cxt ) {
+	cxt->firstcon = cxt->lastcon = NULL;
+	cxt->last_errno = 0;
+	cxt->last_error[0] = '\0';
 }
 
-void my_cleanup() {
-	dMY_CXT;
+void my_cleanup( my_cxt_t *cxt ) {
 	MY_CON *c1, *c2;
-	c1 = MY_CXT.firstcon;
+	c1 = cxt->firstcon;
 	while( c1 ) {
 		c2 = c1->next;
 		my_con_free( c1 );
 		c1 = c2;
 	}
-	MY_CXT.firstcon = MY_CXT.lastcon = NULL;
+	cxt->firstcon = cxt->lastcon = NULL;
 }
 
-void my_session_cleanup() {
-	dMY_CXT;
-	MY_CON *c1 = MY_CXT.firstcon;
+void my_session_cleanup( my_cxt_t *cxt ) {
+	MY_CON *c1 = cxt->firstcon;
 	while( c1 ) {
 		my_con_cleanup( c1 );
 		c1 = c1->next;
 	}
 }
 
-void my_set_error( const char *tpl, ... ) {
-	dMY_CXT;
+void my_set_error( my_cxt_t *cxt, const char *tpl, ... ) {
 	va_list ap;
-	MY_CON *con = my_con_find_by_tid( get_current_thread_id() );
+	MY_CON *con = my_con_find_by_tid( cxt, get_current_thread_id() );
 	va_start( ap, tpl );
 	if( con != NULL )
 		vsprintf( con->my_error, tpl, ap );
 	else
-		vsprintf( MY_CXT.last_error, tpl, ap );
+		vsprintf( cxt->last_error, tpl, ap );
 	va_end( ap );
 }
 
-long my_verify_linkid( long linkid ) {
-	dMY_CXT;
+UV my_verify_linkid( my_cxt_t *cxt, UV linkid ) {
 	if( linkid ) {
-		return my_con_exists( (MY_CON *) linkid ) ? linkid : 0;
+		return my_con_exists( cxt, (MY_CON *) linkid ) ? linkid : 0;
 	}
 #ifdef USE_THREADS
 	else {
-		if( ( linkid = (long) my_con_find_by_tid( get_current_thread_id() ) ) )
+		if( ( linkid = (UV) my_con_find_by_tid( cxt, get_current_thread_id() ) ) )
 			return linkid;
 		return 0;
 	}
 #endif
-	return MY_CXT.lastcon ? (long) MY_CXT.lastcon : 0;
+	return cxt->lastcon ? (UV) cxt->lastcon : 0;
 }
 
-int my_get_type( UV *ptr ) {
+int my_get_type( my_cxt_t *cxt, UV *ptr ) {
 	dMY_CXT;
 	MY_STMT *s1;
 	MY_CON *c1;
 	MY_RES *r1;
 	if( ! *ptr ) {
-		*ptr = my_verify_linkid( *ptr );
+		*ptr = my_verify_linkid( cxt, *ptr );
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
-	for( c1 = MY_CXT.firstcon; c1 != NULL; c1 = c1->next ) {
+	for( c1 = cxt->firstcon; c1 != NULL; c1 = c1->next ) {
 		if( (UV) c1 == *ptr ) return MY_TYPE_CON;
 		for( r1 = c1->firstres; r1 != NULL; r1 = r1->next )
 			if( (UV) r1 == *ptr ) return MY_TYPE_RES;
 		for( s1 = c1->first_stmt; s1 != NULL; s1 = s1->next )
 			if( (UV) s1 == *ptr ) return MY_TYPE_STMT;
 	}
-	my_set_error( "Link ID 0x%06X is unknown", *ptr );
+	my_set_error( cxt, "Unknown link ID 0x%07X", *ptr );
 	return 0;
 }
 
-MY_CON *my_con_add( sqlite3 *con, DWORD tid ) {
-	dMY_CXT;
+MY_CON *my_con_add( my_cxt_t *cxt, sqlite3 *con, DWORD tid ) {
 	int i, l;
 	MY_CON *rcon;
 	Newz( 1, rcon, 1, MY_CON );
 	rcon->con = con;
 	rcon->tid = tid;
 	rcon->my_flags |= MYCF_AUTOCOMMIT;
-	if( MY_CXT.firstcon == NULL )
-		MY_CXT.firstcon = rcon;
+	if( cxt->firstcon == NULL )
+		cxt->firstcon = rcon;
 	else
-		refbuf_add( MY_CXT.lastcon, rcon );
-	MY_CXT.lastcon = rcon;
+		refbuf_add( cxt->lastcon, rcon );
+	cxt->lastcon = rcon;
 	return rcon;
 }
 
-void my_con_rem( MY_CON *con ) {
-	dMY_CXT;
-	if( con == MY_CXT.firstcon )
-		MY_CXT.firstcon = con->next;
-	if( con == MY_CXT.lastcon )
-		MY_CXT.lastcon = con->next;
+void my_con_rem( my_cxt_t *cxt, MY_CON *con ) {
+	if( con == cxt->firstcon )
+		cxt->firstcon = con->next;
+	if( con == cxt->lastcon )
+		cxt->lastcon = con->next;
 	refbuf_rem( con );
 	my_con_free( con );
 }
@@ -119,9 +112,8 @@ void my_con_free( MY_CON *con ) {
 	Safefree( con );
 }
 
-int my_con_exists( MY_CON *con ) {
-	dMY_CXT;
-	MY_CON *c1 = MY_CXT.firstcon;
+int my_con_exists( my_cxt_t *cxt, MY_CON *con ) {
+	MY_CON *c1 = cxt->firstcon;
 	while( c1 ) {
 		if( c1 == con ) return 1;
 		c1 = c1->next;
@@ -129,10 +121,9 @@ int my_con_exists( MY_CON *con ) {
 	return 0;
 }
 
-MY_CON *my_con_find_by_tid( DWORD tid ) {
+MY_CON *my_con_find_by_tid( my_cxt_t *cxt, DWORD tid ) {
 	MY_CON *c1, *c2 = NULL;
-	dMY_CXT;
-	c1 = MY_CXT.firstcon;
+	c1 = cxt->firstcon;
 	while( c1 ) {
 		if( c1->tid == tid ) return c1;
 		c1 = c1->next;
@@ -252,12 +243,11 @@ void my_result_rem( MY_RES *res ) {
 	my_result_free( res );
 }
 
-int my_result_exists( MY_RES *res ) {
-	dMY_CXT;
+int my_result_exists( my_cxt_t *cxt, MY_RES *res ) {
 	MY_CON *c1;
 	MY_RES *r1;
 	if( ! res ) return 0;
-	for( c1 = MY_CXT.lastcon; c1 != NULL; c1 = c1->prev ) {
+	for( c1 = cxt->lastcon; c1 != NULL; c1 = c1->prev ) {
 		for( r1 = c1->lastres; r1 != NULL; r1 = r1->prev ) {
 			if( r1 == res ) return MY_TYPE_RES;
 		}
@@ -306,11 +296,10 @@ void my_stmt_free( MY_STMT *stmt ) {
 	Safefree( stmt );
 }
 
-int my_stmt_exists( UV ptr ) {
-	dMY_CXT;
+int my_stmt_exists( my_cxt_t *cxt, UV ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
-	for( con = MY_CXT.lastcon; con != NULL; con = con->prev ) {
+	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev ) {
 			if( (UV) stmt == ptr ) return MY_TYPE_STMT;
 		}
@@ -318,12 +307,11 @@ int my_stmt_exists( UV ptr ) {
 	return 0;
 }
 
-int my_stmt_or_res( UV ptr ) {
-	dMY_CXT;
+int my_stmt_or_res( my_cxt_t *cxt, UV ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	MY_RES *res;
-	for( con = MY_CXT.lastcon; con != NULL; con = con->prev ) {
+	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( res = con->lastres; res != NULL; res = res->prev )
 			if( (UV) res == ptr ) return MY_TYPE_RES;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
@@ -332,15 +320,14 @@ int my_stmt_or_res( UV ptr ) {
 	return 0;
 }
 
-int my_stmt_or_con( UV *ptr ) {
-	dMY_CXT;
+int my_stmt_or_con( my_cxt_t *cxt, UV *ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	if( *ptr == 0 ) {
-		*ptr = my_verify_linkid( *ptr );
+		*ptr = my_verify_linkid( cxt, *ptr );
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
-	for( con = MY_CXT.lastcon; con != NULL; con = con->prev ) {
+	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		if( (UV) con == *ptr ) return MY_TYPE_CON;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
 			if( (UV) stmt == *ptr ) return MY_TYPE_STMT;

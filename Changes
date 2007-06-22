@@ -1,5 +1,8 @@
 Revision history for Perl extension PAB3::DB::Driver::Sqlite3.
 
+version 1.0.4
+    - fixed MY_CXT handling to run with perl5.9.x
+
 version 1.0.3
     - added missing file
 

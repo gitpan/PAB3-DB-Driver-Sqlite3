@@ -9,9 +9,10 @@
 
 #include <sqlite3.h>
 
-#ifndef DWORD
+#define __PACKAGE__ "PAB3::DB::Driver::Sqlite3"
+
+#undef DWORD
 #define DWORD unsigned long
-#endif
 
 #define MYCF_TRANSACTION	1
 #define MYCF_AUTOCOMMIT		2
@@ -79,7 +80,7 @@ typedef struct st_my_cxt {
 #endif
 } my_cxt_t;
 
-#define MY_CXT_KEY "PAB3::DB::Driver::Sqlite3::_guts" XS_VERSION
+#define MY_CXT_KEY __PACKAGE__ "::_guts" XS_VERSION
 
 START_MY_CXT
 
@@ -89,20 +90,19 @@ char *my_strcpy( char *dst, const char *src );
 int my_stricmp( const char *cs, const char *ct );
 char *my_stristr( const char *str1, const char *str2 );
 
-void my_init();
-void my_cleanup();
-void my_session_cleanup();
+void my_init( my_cxt_t *cxt );
+void my_cleanup( my_cxt_t *cxt );
+void my_session_cleanup( my_cxt_t *cxt );
 
-long my_verify_linkid( long linkid );
-int my_get_type( UV *ptr );
-void my_set_error( const char *tpl, ... );
+UV my_verify_linkid( my_cxt_t *cxt, UV linkid );
+int my_get_type( my_cxt_t *cxt, UV *ptr );
+void my_set_error( my_cxt_t *cxt, const char *tpl, ... );
 
-MY_CON *my_con_add( sqlite3 *con, DWORD tid );
-void my_con_rem( MY_CON *con );
+MY_CON *my_con_add( my_cxt_t *cxt, sqlite3 *con, DWORD tid );
+void my_con_rem( my_cxt_t *cxt, MY_CON *con );
 void my_con_free( MY_CON *con );
-int my_con_exists( MY_CON *con );
-MY_CON *my_con_find_by_tid( DWORD tid );
-MY_CON *my_con_find_by_cid( DWORD cid );
+int my_con_exists( my_cxt_t *cxt, MY_CON *con );
+MY_CON *my_con_find_by_tid( my_cxt_t *cxt, DWORD tid );
 void my_con_cleanup( MY_CON *con );
 
 int my_callback( void *arg, int columns, char **data, char **names );
@@ -110,14 +110,14 @@ int my_callback( void *arg, int columns, char **data, char **names );
 void my_result_free( MY_RES *res );
 MY_RES *my_result_add( MY_CON *con );
 void my_result_rem( MY_RES *res );
-int my_result_exists( MY_RES *res );
+int my_result_exists( my_cxt_t *cxt, MY_RES *res );
 
 MY_STMT *my_stmt_add( MY_CON *con, sqlite3_stmt *pStmt );
 void my_stmt_rem( MY_STMT *stmt );
 void my_stmt_free( MY_STMT *stmt );
-int my_stmt_exists( UV ptr );
+int my_stmt_exists( my_cxt_t *cxt, UV ptr );
 int my_stmt_bind_param( MY_STMT *stmt, int p_num, SV *val, char type );
-int my_stmt_or_res( UV ptr );
-int my_stmt_or_con( UV *ptr );
+int my_stmt_or_res( my_cxt_t *cxt, UV ptr );
+int my_stmt_or_con( my_cxt_t *cxt, UV *ptr );
 
 #endif
