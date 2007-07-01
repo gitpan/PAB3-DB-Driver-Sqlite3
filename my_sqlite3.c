@@ -47,21 +47,21 @@ void my_set_error( my_cxt_t *cxt, const char *tpl, ... ) {
 	va_end( ap );
 }
 
-UV my_verify_linkid( my_cxt_t *cxt, UV linkid ) {
+U32 my_verify_linkid( my_cxt_t *cxt, U32 linkid ) {
 	if( linkid ) {
 		return my_con_exists( cxt, (MY_CON *) linkid ) ? linkid : 0;
 	}
 #ifdef USE_THREADS
 	else {
-		if( ( linkid = (UV) my_con_find_by_tid( cxt, get_current_thread_id() ) ) )
+		if( ( linkid = (U32) my_con_find_by_tid( cxt, get_current_thread_id() ) ) )
 			return linkid;
 		return 0;
 	}
 #endif
-	return cxt->lastcon ? (UV) cxt->lastcon : 0;
+	return cxt->lastcon ? (U32) cxt->lastcon : 0;
 }
 
-int my_get_type( my_cxt_t *cxt, UV *ptr ) {
+int my_get_type( my_cxt_t *cxt, U32 *ptr ) {
 	dMY_CXT;
 	MY_STMT *s1;
 	MY_CON *c1;
@@ -71,11 +71,11 @@ int my_get_type( my_cxt_t *cxt, UV *ptr ) {
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
 	for( c1 = cxt->firstcon; c1 != NULL; c1 = c1->next ) {
-		if( (UV) c1 == *ptr ) return MY_TYPE_CON;
+		if( (U32) c1 == *ptr ) return MY_TYPE_CON;
 		for( r1 = c1->firstres; r1 != NULL; r1 = r1->next )
-			if( (UV) r1 == *ptr ) return MY_TYPE_RES;
+			if( (U32) r1 == *ptr ) return MY_TYPE_RES;
 		for( s1 = c1->first_stmt; s1 != NULL; s1 = s1->next )
-			if( (UV) s1 == *ptr ) return MY_TYPE_STMT;
+			if( (U32) s1 == *ptr ) return MY_TYPE_STMT;
 	}
 	my_set_error( cxt, "Unknown link ID 0x%07X", *ptr );
 	return 0;
@@ -296,31 +296,31 @@ void my_stmt_free( MY_STMT *stmt ) {
 	Safefree( stmt );
 }
 
-int my_stmt_exists( my_cxt_t *cxt, UV ptr ) {
+int my_stmt_exists( my_cxt_t *cxt, U32 ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev ) {
-			if( (UV) stmt == ptr ) return MY_TYPE_STMT;
+			if( (U32) stmt == ptr ) return MY_TYPE_STMT;
 		}
 	}
 	return 0;
 }
 
-int my_stmt_or_res( my_cxt_t *cxt, UV ptr ) {
+int my_stmt_or_res( my_cxt_t *cxt, U32 ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	MY_RES *res;
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( res = con->lastres; res != NULL; res = res->prev )
-			if( (UV) res == ptr ) return MY_TYPE_RES;
+			if( (U32) res == ptr ) return MY_TYPE_RES;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
-			if( (UV) stmt == ptr ) return MY_TYPE_STMT;
+			if( (U32) stmt == ptr ) return MY_TYPE_STMT;
 	}
 	return 0;
 }
 
-int my_stmt_or_con( my_cxt_t *cxt, UV *ptr ) {
+int my_stmt_or_con( my_cxt_t *cxt, U32 *ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	if( *ptr == 0 ) {
@@ -328,9 +328,9 @@ int my_stmt_or_con( my_cxt_t *cxt, UV *ptr ) {
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
-		if( (UV) con == *ptr ) return MY_TYPE_CON;
+		if( (U32) con == *ptr ) return MY_TYPE_CON;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
-			if( (UV) stmt == *ptr ) return MY_TYPE_STMT;
+			if( (U32) stmt == *ptr ) return MY_TYPE_STMT;
 	}
 	return 0;
 }

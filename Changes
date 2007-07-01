@@ -1,10 +1,15 @@
 Revision history for Perl extension PAB3::DB::Driver::Sqlite3.
 
+version 1.0.5
+    - fixed type conversations on 32bit system with perl 64bit number support
+    - fixed some functions for correct use on 32bit system with 64bit values
+
 version 1.0.4
-    - fixed MY_CXT handling to run with perl5.9.x
+    - fixed MY_CXT api handling to run with perl/5.9.x
 
 version 1.0.3
     - added missing file
 
 version 1.0.2
-    - fixed execute() method which returns an error on second and further calls
+    - fixed execute() method which did return an error on second and further
+      calls

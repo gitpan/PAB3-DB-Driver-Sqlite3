@@ -94,8 +94,8 @@ void my_init( my_cxt_t *cxt );
 void my_cleanup( my_cxt_t *cxt );
 void my_session_cleanup( my_cxt_t *cxt );
 
-UV my_verify_linkid( my_cxt_t *cxt, UV linkid );
-int my_get_type( my_cxt_t *cxt, UV *ptr );
+U32 my_verify_linkid( my_cxt_t *cxt, U32 linkid );
+int my_get_type( my_cxt_t *cxt, U32 *ptr );
 void my_set_error( my_cxt_t *cxt, const char *tpl, ... );
 
 MY_CON *my_con_add( my_cxt_t *cxt, sqlite3 *con, DWORD tid );
@@ -115,9 +115,9 @@ int my_result_exists( my_cxt_t *cxt, MY_RES *res );
 MY_STMT *my_stmt_add( MY_CON *con, sqlite3_stmt *pStmt );
 void my_stmt_rem( MY_STMT *stmt );
 void my_stmt_free( MY_STMT *stmt );
-int my_stmt_exists( my_cxt_t *cxt, UV ptr );
+int my_stmt_exists( my_cxt_t *cxt, U32 ptr );
 int my_stmt_bind_param( MY_STMT *stmt, int p_num, SV *val, char type );
-int my_stmt_or_res( my_cxt_t *cxt, UV ptr );
-int my_stmt_or_con( my_cxt_t *cxt, UV *ptr );
+int my_stmt_or_res( my_cxt_t *cxt, U32 ptr );
+int my_stmt_or_con( my_cxt_t *cxt, U32 *ptr );
 
 #endif

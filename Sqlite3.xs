@@ -23,7 +23,7 @@ BOOT:
 # * _open( db [, client_flag] )
 # ******************************************************************************/
 
-UV
+U32
 _open( db, client_flag = 0 )
 	const char *db;
 	UV client_flag;
@@ -42,7 +42,7 @@ CODE:
 			New( 1, rcon->db, l + 1, char );
 			Copy( db, rcon->db, l + 1, char );
 		}
-		RETVAL = (UV) rcon;
+		RETVAL = (U32) rcon;
 	}
 	else {
 		if( con != NULL ) {
@@ -63,7 +63,7 @@ OUTPUT:
 
 void
 close( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -84,9 +84,9 @@ CODE:
 # * reconnect( [linkid] )
 # ******************************************************************************/
 
-UV
+int
 reconnect( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -102,7 +102,7 @@ OUTPUT:
 # * query( [linkid, ] sql )
 # ******************************************************************************/
 
-UV
+U32
 query( ... )
 PREINIT:
 	dMY_CXT;
@@ -114,7 +114,7 @@ PREINIT:
 CODE:
 	switch( items ) {
 	case 2:
-		linkid = (UV) SvUV( ST( itemp ) );
+		linkid = (U32) SvUV( ST( itemp ) );
 		itemp ++;
 	case 1:
 		sql = (const char *) SvPV_nolen( ST( itemp ) );
@@ -130,7 +130,7 @@ CODE:
 		if( res->is_valid ) {
 			res->current_row = res->data_cursor;
 			con->affected_rows = res->numrows;
-			RETVAL = (long) res;
+			RETVAL = (U32) res;
 		}
 		else {
 			my_result_rem( res );
@@ -160,7 +160,7 @@ prepare( ... )
 PREINIT:
 	dMY_CXT;
 	const char *sql;
-	UV linkid = 0;
+	U32 linkid = 0;
 	MY_CON *con;
 	sqlite3_stmt *pStmt;
 //	const char *pzTail;
@@ -168,7 +168,7 @@ PREINIT:
 CODE:
 	switch( items ) {
 	case 2:
-		linkid = (UV) SvUV( ST( itemp ) );
+		linkid = (U32) SvUV( ST( itemp ) );
 		itemp ++;
 	case 1:
 		sql = (const char *) SvPV_nolen( ST( itemp ) );
@@ -180,7 +180,7 @@ CODE:
 	if( con == NULL ) goto error;
 	r = sqlite3_prepare_v2( con->con, sql, strlen( sql ), &pStmt, NULL );
 	if( r != SQLITE_OK ) goto error;
-	RETVAL = (UV) my_stmt_add( con, pStmt );
+	RETVAL = (U32) my_stmt_add( con, pStmt );
 	goto exit;
 error:
 	RETVAL = 0;
@@ -195,8 +195,8 @@ OUTPUT:
 
 int
 bind_param( stmtid, p_num, val, type = 0 )
-	UV stmtid;
-	UV p_num;
+	U32 stmtid;
+	U32 p_num;
 	SV *val;
 	char type;
 PREINIT:
@@ -214,9 +214,9 @@ OUTPUT:
 # * execute( stmtid, [*params] )
 # ******************************************************************************/
 
-UV
+U32
 execute( stmtid, ... )
-	UV stmtid;
+	U32 stmtid;
 PREINIT:
 	dMY_CXT;
 	MY_STMT *stmt;
@@ -307,7 +307,7 @@ CODE:
 		res->current_row = res->data_cursor;
 		stmt->res = res;
 		stmt->con->affected_rows = res->numrows;
-		RETVAL = (UV) res;
+		RETVAL = (U32) res;
 		goto exit;
 	case SQLITE_DONE:
 		stmt->con->affected_rows = sqlite3_changes( stmt->con->con );
@@ -332,7 +332,7 @@ OUTPUT:
 
 int
 free_result( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -362,9 +362,9 @@ OUTPUT:
 # * num_fields( resid )
 # ******************************************************************************/
 
-UV
+U32
 num_fields( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -387,9 +387,9 @@ OUTPUT:
 # * num_rows( resid )
 # ******************************************************************************/
 
-UV
+U32
 num_rows( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -414,7 +414,7 @@ OUTPUT:
 
 void
 fetch_names( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -443,7 +443,7 @@ exit:
 
 void
 fetch_field( resid, offset = -1 )
-	UV resid;
+	U32 resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -506,9 +506,9 @@ exit:
 # * field_seek( resid [, offset] )
 # ******************************************************************************/
 
-UV
+U32
 field_seek( resid, offset = 0 )
-	UV resid;
+	U32 resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -544,7 +544,7 @@ OUTPUT:
 
 void
 fetch_row( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -596,7 +596,7 @@ exit:
 
 void
 fetch_col( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -648,7 +648,7 @@ exit:
 
 void
 fetch_hash( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -701,7 +701,7 @@ exit:
 
 void
 fetch_lengths( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -733,9 +733,9 @@ exit:
 # * row_tell( resid )
 # ******************************************************************************/
 
-UV
+U32
 row_tell( resid )
-	UV resid;
+	U32 resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -760,7 +760,7 @@ OUTPUT:
 
 long
 row_seek( resid, offset = 0 )
-	UV resid;
+	U32 resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -826,9 +826,9 @@ OUTPUT:
 # * insert_id( [linkid [, field [, table [, schema]]]] )
 # ******************************************************************************/
 
-UV
+U32
 insert_id( linkid = 0, field = NULL, table = NULL, schema = NULL )
-	UV linkid;
+	U32 linkid;
 	const char *field;
 	const char *table;
 	const char *schema;
@@ -837,10 +837,10 @@ PREINIT:
 CODE:
 	switch( my_stmt_or_con( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
-		RETVAL = (UV) sqlite3_last_insert_rowid( ((MY_CON *) linkid)->con );
+		RETVAL = (U32) sqlite3_last_insert_rowid( ((MY_CON *) linkid)->con );
 		break;
 	case MY_TYPE_STMT:
-		RETVAL = (UV) sqlite3_last_insert_rowid( ((MY_STMT *) linkid)->con->con );
+		RETVAL = (U32) sqlite3_last_insert_rowid( ((MY_STMT *) linkid)->con->con );
 		break;
 	default:
 		RETVAL = 0;
@@ -854,18 +854,18 @@ OUTPUT:
 # * affected_rows( [linkid] )
 # ******************************************************************************/
 
-UV
+U32
 affected_rows( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
 	switch( my_stmt_or_con( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
-		RETVAL = (UV) ((MY_CON *) linkid)->affected_rows;
+		RETVAL = (U32) ((MY_CON *) linkid)->affected_rows;
 		break;
 	case MY_TYPE_STMT:
-		RETVAL = (UV) ((MY_STMT *) linkid)->con->affected_rows;
+		RETVAL = (U32) ((MY_STMT *) linkid)->con->affected_rows;
 		break;
 	default:
 		RETVAL = 0;
@@ -965,13 +965,13 @@ set_charset( ... )
 PREINIT:
 	dMY_CXT;
 	const char *charset;
-	UV linkid, itemp = 0;
+	U32 linkid, itemp = 0;
 	MY_CON *con;
 CODE:
     if( items < 1 || items > 2 )
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::set_charset(linkid = 0, charset)" );
 	if( items > 1 ) {
-		linkid = (UV) SvUV( ST( itemp ) );
+		linkid = (U32) SvUV( ST( itemp ) );
 		itemp ++;
 	}
     charset = (const char *) SvPV_nolen( ST( itemp ) );
@@ -992,7 +992,7 @@ OUTPUT:
 
 const char *
 get_charset( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 CODE:
 	RETVAL = "utf8";
 OUTPUT:
@@ -1061,7 +1061,7 @@ CLEANUP:
 
 int
 auto_commit( linkid = 0, mode = 0 )
-	UV linkid;
+	U32 linkid;
 	int mode;
 PREINIT:
 	dMY_CXT;
@@ -1105,7 +1105,7 @@ OUTPUT:
 
 int
 begin_work( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1135,7 +1135,7 @@ OUTPUT:
 
 int
 commit( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1168,7 +1168,7 @@ OUTPUT:
 
 int
 rollback( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1201,7 +1201,7 @@ OUTPUT:
 
 void
 show_catalogs( linkid = 0, wild = NULL )
-	UV linkid;
+	U32 linkid;
 	const char *wild;
 PREINIT:
 	dMY_CXT;
@@ -1228,7 +1228,7 @@ error:
 
 void
 show_tables( linkid = 0, schema = NULL, db = NULL, wild = NULL )
-	UV linkid;
+	U32 linkid;
 	const char *db;
 	const char *schema;
 	const char *wild;
@@ -1290,7 +1290,7 @@ void
 show_fields( ... )
 PREINIT:
 	dMY_CXT;
-	UV linkid = 0;
+	U32 linkid = 0;
 	const char *table;
 	const char *schema = NULL;
 	const char *db = NULL;
@@ -1324,7 +1324,7 @@ PPCODE:
     if( items < ( SvIOK( ST(0) ) ? 2 : 1 ) || items > 5 )
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::show_fields(linkid = 0, table, schema = NULL, db = NULL, wild = NULL)" );
 	if( SvIOK( ST( itemp ) ) ) {
-		linkid = (UV) SvUV( ST( itemp ) );
+		linkid = (U32) SvUV( ST( itemp ) );
 		itemp ++;
 	}
 	table = (const char *) SvPV_nolen( ST( itemp ) );
@@ -1447,7 +1447,7 @@ error:
 
 int
 errno( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1466,7 +1466,7 @@ OUTPUT:
 
 SV *
 error( linkid = 0 )
-	UV linkid;
+	U32 linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
