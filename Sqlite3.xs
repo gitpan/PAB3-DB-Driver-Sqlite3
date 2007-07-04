@@ -23,7 +23,7 @@ BOOT:
 # * _open( db [, client_flag] )
 # ******************************************************************************/
 
-U32
+void *
 _open( db, client_flag = 0 )
 	const char *db;
 	UV client_flag;
@@ -42,7 +42,7 @@ CODE:
 			New( 1, rcon->db, l + 1, char );
 			Copy( db, rcon->db, l + 1, char );
 		}
-		RETVAL = (U32) rcon;
+		RETVAL = (void *) rcon;
 	}
 	else {
 		if( con != NULL ) {
@@ -63,7 +63,7 @@ OUTPUT:
 
 void
 close( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -86,7 +86,7 @@ CODE:
 
 int
 reconnect( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -102,19 +102,19 @@ OUTPUT:
 # * query( [linkid, ] sql )
 # ******************************************************************************/
 
-U32
+IV
 query( ... )
 PREINIT:
 	dMY_CXT;
 	const char *sql;
-	UV linkid = 0;
+	void *linkid = NULL;
 	MY_CON *con;
 	MY_RES *res;
 	int r, itemp = 0;
 CODE:
 	switch( items ) {
 	case 2:
-		linkid = (U32) SvUV( ST( itemp ) );
+		linkid = INT2PTR( void *, SvIV( ST(0) ) );
 		itemp ++;
 	case 1:
 		sql = (const char *) SvPV_nolen( ST( itemp ) );
@@ -130,7 +130,7 @@ CODE:
 		if( res->is_valid ) {
 			res->current_row = res->data_cursor;
 			con->affected_rows = res->numrows;
-			RETVAL = (U32) res;
+			RETVAL = PTR2IV( res );
 		}
 		else {
 			my_result_rem( res );
@@ -155,20 +155,21 @@ OUTPUT:
 # * prepare( [linkid, ] sql )
 # ******************************************************************************/
 
-UV
+IV
 prepare( ... )
 PREINIT:
 	dMY_CXT;
 	const char *sql;
-	U32 linkid = 0;
+	void *linkid = NULL;
 	MY_CON *con;
+	MY_STMT *stmt;
 	sqlite3_stmt *pStmt;
 //	const char *pzTail;
 	int r, itemp = 0;
 CODE:
 	switch( items ) {
 	case 2:
-		linkid = (U32) SvUV( ST( itemp ) );
+		linkid = INT2PTR( void *, SvIV( ST(0) ) );
 		itemp ++;
 	case 1:
 		sql = (const char *) SvPV_nolen( ST( itemp ) );
@@ -180,7 +181,8 @@ CODE:
 	if( con == NULL ) goto error;
 	r = sqlite3_prepare_v2( con->con, sql, strlen( sql ), &pStmt, NULL );
 	if( r != SQLITE_OK ) goto error;
-	RETVAL = (U32) my_stmt_add( con, pStmt );
+	stmt = my_stmt_add( con, pStmt );
+	RETVAL = PTR2IV( stmt );
 	goto exit;
 error:
 	RETVAL = 0;
@@ -195,7 +197,7 @@ OUTPUT:
 
 int
 bind_param( stmtid, p_num, val, type = 0 )
-	U32 stmtid;
+	void *stmtid;
 	U32 p_num;
 	SV *val;
 	char type;
@@ -214,9 +216,9 @@ OUTPUT:
 # * execute( stmtid, [*params] )
 # ******************************************************************************/
 
-U32
+IV
 execute( stmtid, ... )
-	U32 stmtid;
+	void *stmtid;
 PREINIT:
 	dMY_CXT;
 	MY_STMT *stmt;
@@ -307,7 +309,7 @@ CODE:
 		res->current_row = res->data_cursor;
 		stmt->res = res;
 		stmt->con->affected_rows = res->numrows;
-		RETVAL = (U32) res;
+		RETVAL = PTR2IV( res );
 		goto exit;
 	case SQLITE_DONE:
 		stmt->con->affected_rows = sqlite3_changes( stmt->con->con );
@@ -332,7 +334,7 @@ OUTPUT:
 
 int
 free_result( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -364,7 +366,7 @@ OUTPUT:
 
 U32
 num_fields( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -389,7 +391,7 @@ OUTPUT:
 
 U32
 num_rows( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -414,7 +416,7 @@ OUTPUT:
 
 void
 fetch_names( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -443,7 +445,7 @@ exit:
 
 void
 fetch_field( resid, offset = -1 )
-	U32 resid;
+	void * resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -508,7 +510,7 @@ exit:
 
 U32
 field_seek( resid, offset = 0 )
-	U32 resid;
+	void * resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -544,7 +546,7 @@ OUTPUT:
 
 void
 fetch_row( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -596,7 +598,7 @@ exit:
 
 void
 fetch_col( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -648,7 +650,7 @@ exit:
 
 void
 fetch_hash( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -701,7 +703,7 @@ exit:
 
 void
 fetch_lengths( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 	MY_RES *res;
@@ -735,7 +737,7 @@ exit:
 
 U32
 row_tell( resid )
-	U32 resid;
+	void * resid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -760,7 +762,7 @@ OUTPUT:
 
 long
 row_seek( resid, offset = 0 )
-	U32 resid;
+	void * resid;
 	long offset;
 PREINIT:
 	dMY_CXT;
@@ -826,28 +828,39 @@ OUTPUT:
 # * insert_id( [linkid [, field [, table [, schema]]]] )
 # ******************************************************************************/
 
-U32
+void
 insert_id( linkid = 0, field = NULL, table = NULL, schema = NULL )
-	U32 linkid;
+	void * linkid;
 	const char *field;
 	const char *table;
 	const char *schema;
 PREINIT:
 	dMY_CXT;
+	sqlite_int64 ret;
+	char tmp[21], *p1;
 CODE:
 	switch( my_stmt_or_con( &MY_CXT, &linkid ) ) {
 	case MY_TYPE_CON:
-		RETVAL = (U32) sqlite3_last_insert_rowid( ((MY_CON *) linkid)->con );
+		ret = sqlite3_last_insert_rowid( ((MY_CON *) linkid)->con );
 		break;
 	case MY_TYPE_STMT:
-		RETVAL = (U32) sqlite3_last_insert_rowid( ((MY_STMT *) linkid)->con->con );
+		ret = sqlite3_last_insert_rowid( ((MY_STMT *) linkid)->con->con );
 		break;
 	default:
-		RETVAL = 0;
+		ret = 0;
 		break;
 	}
-OUTPUT:
-	RETVAL
+#ifdef HAS_UV64
+	ST(0) = sv_2mortal( newSVuv( ret ) );
+#else
+	if( ret <= 0xffffffff ) {
+		ST(0) = sv_2mortal( newSVuv( ret ) );
+	}
+	else {
+		p1 = my_ltoa( tmp, (XLONG) ret, 10 );
+		ST(0) = sv_2mortal( newSVpvn( tmp, p1 - tmp ) );
+	}
+#endif
 
 
 #/******************************************************************************
@@ -856,7 +869,7 @@ OUTPUT:
 
 U32
 affected_rows( linkid = 0 )
-	U32 linkid;
+	void *linkid;
 PREINIT:
 	dMY_CXT;
 CODE:
@@ -965,13 +978,14 @@ set_charset( ... )
 PREINIT:
 	dMY_CXT;
 	const char *charset;
-	U32 linkid, itemp = 0;
+	void *linkid = NULL;
+	DWORD itemp = 0;
 	MY_CON *con;
 CODE:
     if( items < 1 || items > 2 )
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::set_charset(linkid = 0, charset)" );
 	if( items > 1 ) {
-		linkid = (U32) SvUV( ST( itemp ) );
+		linkid = INT2PTR( void *, SvIV( ST(0) ) );
 		itemp ++;
 	}
     charset = (const char *) SvPV_nolen( ST( itemp ) );
@@ -992,7 +1006,7 @@ OUTPUT:
 
 const char *
 get_charset( linkid = 0 )
-	U32 linkid;
+	void *linkid;
 CODE:
 	RETVAL = "utf8";
 OUTPUT:
@@ -1061,7 +1075,7 @@ CLEANUP:
 
 int
 auto_commit( linkid = 0, mode = 0 )
-	U32 linkid;
+	void * linkid;
 	int mode;
 PREINIT:
 	dMY_CXT;
@@ -1105,7 +1119,7 @@ OUTPUT:
 
 int
 begin_work( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1135,7 +1149,7 @@ OUTPUT:
 
 int
 commit( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1168,7 +1182,7 @@ OUTPUT:
 
 int
 rollback( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1201,7 +1215,7 @@ OUTPUT:
 
 void
 show_catalogs( linkid = 0, wild = NULL )
-	U32 linkid;
+	void * linkid;
 	const char *wild;
 PREINIT:
 	dMY_CXT;
@@ -1228,7 +1242,7 @@ error:
 
 void
 show_tables( linkid = 0, schema = NULL, db = NULL, wild = NULL )
-	U32 linkid;
+	void * linkid;
 	const char *db;
 	const char *schema;
 	const char *wild;
@@ -1290,7 +1304,7 @@ void
 show_fields( ... )
 PREINIT:
 	dMY_CXT;
-	U32 linkid = 0;
+	void *linkid = NULL;
 	const char *table;
 	const char *schema = NULL;
 	const char *db = NULL;
@@ -1324,7 +1338,7 @@ PPCODE:
     if( items < ( SvIOK( ST(0) ) ? 2 : 1 ) || items > 5 )
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::show_fields(linkid = 0, table, schema = NULL, db = NULL, wild = NULL)" );
 	if( SvIOK( ST( itemp ) ) ) {
-		linkid = (U32) SvUV( ST( itemp ) );
+		linkid = INT2PTR( void *, SvIV( ST( itemp ) ) );
 		itemp ++;
 	}
 	table = (const char *) SvPV_nolen( ST( itemp ) );
@@ -1360,7 +1374,7 @@ void
 show_index( ... )
 PREINIT:
 	dMY_CXT;
-	UV linkid = 0;
+	void *linkid = NULL;
 	const char *table;
 	const char *schema = NULL;
 	const char *db = NULL;
@@ -1413,7 +1427,7 @@ PPCODE:
     if( items < ( SvIOK( ST(0) ) ? 2 : 1 ) || items > 4 )
 		Perl_croak( aTHX_ "Usage: " __PACKAGE__ "::show_index(linkid = 0, table, schema = NULL, db = NULL)" );
 	if( SvIOK( ST( itemp ) ) ) {
-		linkid = (UV) SvUV( ST( itemp ) );
+		linkid = INT2PTR( void *, SvIV( ST( itemp ) ) );
 		itemp ++;
 	}
 	table = (const char *) SvPV_nolen( ST( itemp ) );
@@ -1447,7 +1461,7 @@ error:
 
 int
 errno( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;
@@ -1466,7 +1480,7 @@ OUTPUT:
 
 SV *
 error( linkid = 0 )
-	U32 linkid;
+	void * linkid;
 PREINIT:
 	dMY_CXT;
 	MY_CON *con;

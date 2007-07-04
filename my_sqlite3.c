@@ -47,21 +47,21 @@ void my_set_error( my_cxt_t *cxt, const char *tpl, ... ) {
 	va_end( ap );
 }
 
-U32 my_verify_linkid( my_cxt_t *cxt, U32 linkid ) {
+UPTR my_verify_linkid( my_cxt_t *cxt, UPTR linkid ) {
 	if( linkid ) {
 		return my_con_exists( cxt, (MY_CON *) linkid ) ? linkid : 0;
 	}
 #ifdef USE_THREADS
 	else {
-		if( ( linkid = (U32) my_con_find_by_tid( cxt, get_current_thread_id() ) ) )
+		if( ( linkid = (UPTR) my_con_find_by_tid( cxt, get_current_thread_id() ) ) )
 			return linkid;
 		return 0;
 	}
 #endif
-	return cxt->lastcon ? (U32) cxt->lastcon : 0;
+	return cxt->lastcon ? (UPTR) cxt->lastcon : 0;
 }
 
-int my_get_type( my_cxt_t *cxt, U32 *ptr ) {
+int my_get_type( my_cxt_t *cxt, UPTR *ptr ) {
 	dMY_CXT;
 	MY_STMT *s1;
 	MY_CON *c1;
@@ -71,11 +71,11 @@ int my_get_type( my_cxt_t *cxt, U32 *ptr ) {
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
 	for( c1 = cxt->firstcon; c1 != NULL; c1 = c1->next ) {
-		if( (U32) c1 == *ptr ) return MY_TYPE_CON;
+		if( (UPTR) c1 == *ptr ) return MY_TYPE_CON;
 		for( r1 = c1->firstres; r1 != NULL; r1 = r1->next )
-			if( (U32) r1 == *ptr ) return MY_TYPE_RES;
+			if( (UPTR) r1 == *ptr ) return MY_TYPE_RES;
 		for( s1 = c1->first_stmt; s1 != NULL; s1 = s1->next )
-			if( (U32) s1 == *ptr ) return MY_TYPE_STMT;
+			if( (UPTR) s1 == *ptr ) return MY_TYPE_STMT;
 	}
 	my_set_error( cxt, "Unknown link ID 0x%07X", *ptr );
 	return 0;
@@ -296,31 +296,31 @@ void my_stmt_free( MY_STMT *stmt ) {
 	Safefree( stmt );
 }
 
-int my_stmt_exists( my_cxt_t *cxt, U32 ptr ) {
+int my_stmt_exists( my_cxt_t *cxt, UPTR ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev ) {
-			if( (U32) stmt == ptr ) return MY_TYPE_STMT;
+			if( (UPTR) stmt == ptr ) return MY_TYPE_STMT;
 		}
 	}
 	return 0;
 }
 
-int my_stmt_or_res( my_cxt_t *cxt, U32 ptr ) {
+int my_stmt_or_res( my_cxt_t *cxt, UPTR ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	MY_RES *res;
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
 		for( res = con->lastres; res != NULL; res = res->prev )
-			if( (U32) res == ptr ) return MY_TYPE_RES;
+			if( (UPTR) res == ptr ) return MY_TYPE_RES;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
-			if( (U32) stmt == ptr ) return MY_TYPE_STMT;
+			if( (UPTR) stmt == ptr ) return MY_TYPE_STMT;
 	}
 	return 0;
 }
 
-int my_stmt_or_con( my_cxt_t *cxt, U32 *ptr ) {
+int my_stmt_or_con( my_cxt_t *cxt, UPTR *ptr ) {
 	MY_CON *con;
 	MY_STMT *stmt;
 	if( *ptr == 0 ) {
@@ -328,9 +328,9 @@ int my_stmt_or_con( my_cxt_t *cxt, U32 *ptr ) {
 		return *ptr != 0 ? MY_TYPE_CON : 0;
 	}
 	for( con = cxt->lastcon; con != NULL; con = con->prev ) {
-		if( (U32) con == *ptr ) return MY_TYPE_CON;
+		if( (UPTR) con == *ptr ) return MY_TYPE_CON;
 		for( stmt = con->last_stmt; stmt != NULL; stmt = stmt->prev )
-			if( (U32) stmt == *ptr ) return MY_TYPE_STMT;
+			if( (UPTR) stmt == *ptr ) return MY_TYPE_STMT;
 	}
 	return 0;
 }
@@ -388,20 +388,106 @@ unsigned long get_current_thread_id() {
 #endif
 }
 
-/*
-#define CRC32_POLYNOMIAL 0xEDB88320
-
-DWORD my_crc32( const char *str, DWORD len ) {
-	DWORD idx, bit, data, crc = 0xffffffff;
-	for( idx = 0; idx < len; idx ++ ) {
-		data = *str ++;
-	    for( bit = 0; bit < 8; bit ++, data >>= 1 ) {
-			crc = ( crc >> 1 ) ^ ( ( ( crc ^ data ) & 1 ) ? CRC32_POLYNOMIAL : 0 );
-		}
+char *my_strrev( char *str, size_t len ) {
+	char *p1, *p2;
+	if( ! str || ! *str ) return str;
+	for( p1 = str, p2 = str + len - 1; p2 > p1; ++ p1, -- p2 ) {
+		*p1 ^= *p2;
+		*p2 ^= *p1;
+		*p1 ^= *p2;
 	}
-	return crc;
+	return str;
 }
-*/
+
+char *my_itoa( char *str, long value, int radix ) {
+	int rem;
+	char *ret = str;
+	switch( radix ) {
+	case 16:
+		do {
+			rem = value % 16;
+			value /= 16;
+			switch( rem ) {
+			case 10:
+				*ret ++ = 'A';
+				break;
+			case 11:
+				*ret ++ = 'B';
+				break;
+			case 12:
+				*ret ++ = 'C';
+				break;
+			case 13:
+				*ret ++ = 'D';
+				break;
+			case 14:
+				*ret ++ = 'E';
+				break;
+			case 15:
+				*ret ++ = 'F';
+				break;
+			default:
+				*ret ++ = (char) ( rem + 0x30 );
+				break;
+			}
+		} while( value != 0 );
+		break;
+	default:
+		do {
+			rem = value % radix;
+			value /= radix;
+			*ret ++ = (char) ( rem + 0x30 );
+		} while( value != 0 );
+	}
+	*ret = '\0' ;
+	my_strrev( str, ret - str );
+	return ret;
+}
+
+char *my_ltoa( char *str, XLONG value, int radix ) {
+	int rem;
+	char *ret = str;
+	switch( radix ) {
+	case 16:
+		do {
+			rem = value % 16;
+			value /= 16;
+			switch( rem ) {
+			case 10:
+				*ret ++ = 'A';
+				break;
+			case 11:
+				*ret ++ = 'B';
+				break;
+			case 12:
+				*ret ++ = 'C';
+				break;
+			case 13:
+				*ret ++ = 'D';
+				break;
+			case 14:
+				*ret ++ = 'E';
+				break;
+			case 15:
+				*ret ++ = 'F';
+				break;
+			default:
+				*ret ++ = (char) ( rem + 0x30 );
+				break;
+			}
+		} while( value != 0 );
+		break;
+	default:
+		do {
+			rem = value % radix;
+			value /= radix;
+			*ret ++ = (char) ( rem + 0x30 );
+		} while( value != 0 );
+	}
+	*ret = '\0' ;
+	my_strrev( str, ret - str );
+	return ret;
+}
 
 char *my_strcpy( char *dst, const char *src ) {
 	char ch;
