@@ -34,7 +34,7 @@
 #if defined __unix__
 #	define XLONG long long
 #	define UXLONG unsigned long long
-#elif defined __WIN__
+#elif defined _WIN32
 #	define XLONG __int64
 #	define UXLONG unsigned __int64
 #else

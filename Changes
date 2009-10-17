@@ -1,5 +1,9 @@
 Revision history for Perl extension PAB3::DB::Driver::Sqlite3.
 
+version 1.07
+    - changed version style
+    - added static linking to crt on windows
+
 version 1.0.6
     - fixed type conversations on 64bit systems
 
